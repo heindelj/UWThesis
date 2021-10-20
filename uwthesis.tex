@@ -219,7 +219,7 @@ really is not one.
 %
 \dedication{\begin{center}Who to dedicate this to? 
 
-Perhaps Silicon, without which computational chemistry would be much harder.\end{center}}
+Wally\end{center}}
 
 %
 % end of the preliminary pages
@@ -232,7 +232,75 @@ Perhaps Silicon, without which computational chemistry would be much harder.\end
 
 \textpages
 
+\chapter{Paradigms in the Simulation of Molecular Dynamics}
 
+Simulating the dynamics of molecules is one of the main techniques for studying the spatial and temporal behavior of chemical systems. In molecular dynamics (MD) simulations, the forces acting on all atoms must be calculated so that the system can be propagated forward in time by integrating Newton's equations of motion. The vast majority of computer time in any MD simulation is spent calculating the forces on each atom. Calculating these forces can be done using many different approaches ranging from simple analytic models of both the intra- and intermolecular degrees of freedom all the way up to numerical solutions of the electronic Schrodinger equation. Clearly, the former approach allows for much longer time-scales and/or system-sizes to be studied while the latter approach does not require parameterization for specific systems and can be made arbitrarily accurate, at least in principle. Each of these approaches to describing molecular forces has value and, as a result, can be thought of as two different paradigms for driving MD simulations.
+
+\section{Molecular Mechanics}
+
+The simplest approach to generating forces for MD consists of using simple analytic equations for the intra- and intermolecular degrees of freedom. Some examples of possible interaction types are Lennard-Jones terms, Morse potentials\autocite{morse_diatomic_1929}, Buckingham exponentials\autocite{buckingham_classical_1938}, or suitably modified versions of these\autocite{werhahn_new_2015}. In order to make the discussion more concrete, we will focus on the functions entering the OPLS force field\autocite{damm_opls_1997}. There are four types of terms in this force field, those describing the bonds, angles, dihedrals, and all non-bonded interactions. These terms take the following form:
+\begin{equation}
+    E_{\mathrm{bond}}=\sum_{\mathrm{bonds}}K_r(r-r_{eq})^2
+\end{equation}
+\begin{equation}
+    E_{\mathrm{angle}}=\sum_{\mathrm{angles}}K_\theta(\theta-\theta_{eq})^2
+\end{equation}
+\begin{equation}
+    V(\phi)=\frac{V_1}{2}[1+\cos(\phi+f_1)] + \frac{V_2}{2}[1-\cos(2\phi+f_2)] + \frac{V_3}{2}[1+\cos(3\phi+f_3)]
+\end{equation}
+\begin{equation}
+    E_{\mathrm{nb}}=\sum_{i<j}\left(\frac{q_iq_j}{r_{ij}^2}+\frac{A_{ij}}{r_{ij}^{12}}-\frac{C_{ij}}{r_{ij}^6}\right)
+\end{equation}
+
+\par Clearly, evaluating these potentials and the corresponding forces will be extremely fast because the intermolecular part is pairwise additive and the intramolecular part consists of very simple functions. The fact that these interactions are pairwise additive is clearly incorrect. The electronic distribution of a molecule is affected by the presence of other molecules in a non-additive manner\autocite{stone_theory_2013}. In the simplest case, one can be certain that the charge on a particular atom in a molecule (which is not even well-defined in quantum mechanics) will change its value in the presence of other charges. In other words, the OPLS force field, and many others like it, completely neglects atomic and molecular polarizabilites. In order to compensate for this and many other errors inherent to these simplified potentials, one must carefully parameterize each term to reproduce some experimental property.
+
+\par The use of simplified interaction terms like those in the OPLS force field to drive MD simulations is often referred to as molecular mechanics\autocite{rappe_molecular_1997} (MM). This paradigm relies on large cancellations of errors in the potential with the further hope that errors in the short-time dynamics will be averaged out to provide approximately correct long-time dynamics. Indeed, MM tries to parameterize the complexities of quantum mechanics into simple functions so that very large ensembles can be thoroughly sampled.
+
+\par For many systems, such as proteins and large condensed phase systems, MM is the only possible approach. That is, there are many physical systems which are very large and spatially heterogeneous. This means the only forms of simulation which can be used must have easy to evaluate force fields. If, on the other hand, one is interested in intricate details of a system's dynamics, especially those influenced by quantum mechanical effects, then MM is entirely useless because it avoids these complexities by design. For these more complicated cases, we have to start from first principles and grapple with the Schrodinger equation directly.
+
+\section{ab initio Molecular Dynamics}
+
+\par Generating forces for molecular dynamics through \textit{ab initio} calculations is a powerful and general approach which has been utilized extensively since the mid-1980s. The most obvious form of \textit{ab initio} molecular dynamics (AIMD) would be to simply use the energy gradients from any electronic structure method with the same type of integrator one might use in MM simulations. This technique propagates the nuclei on the Born-Oppenheimer potential energy surface (PES). While Born-Oppenheimer MD (BOMD) is simple, there are very few systems for which it is useful because extremely small time steps have to be used in order to accurately integrate the electronic motions. There are some relatively recent approaches that attempt to solve this problem\autocite{kuhne_efficient_2007}, but by the far the most common technique is to instead use Car-Parrinello MD\autocite{car_unified_1985}.
+
+\par In Car-Parrinello MD (CPMD) simulations, the system dynamics are generated from the Euler-Lagrange equations associated with an extended Lagrangian. That is, certain extra degrees of freedom, which have no concrete physical meaning, are added to the usual Lagrangian while still guaranteeing that this Lagrangian samples the same ensemble as the real system. The extra degrees of freedom in CPMD are pseudo-particles with a fictitous mass which are cleverly utilized to slow down the electronic motions. This allows much longer time steps to be used when integrating the equations of motion than in BOMD.
+
+\par Even though CPMD solves a major problem with AIMD by coercing electronic degrees of freedom to change on the same time scale as nuclear ones, there is no escaping the fact that electronic structure calculations are often three (or many more) orders of magnitude slower than classical potentials such as those used in MM. This difference in speed is only exacerbated further as system size increases due to the poor scaling of electronic structure methods.
+
+\section{Advanced Force Fields}
+
+\par The conundrum is clear now: \textit{ab initio} methods are too slow for many use cases but MM force fields are too inaccurate and heavily parameterized to be universally reliable. One partial solution to this conundrum can be seen in the advent of advanced force fields. For the purpose of this discussion, an advanced force field is any one which includes non-additive effects and rigorously attempts to reproduce the Born-Oppenheimer surface of the system. I will focus specifically on potentials attempting to model the interactions between water molecules although there are similar potentials for other important systems.
+
+\par Some of the earliest advanced force fields are those which model many-body effects by using polarizable atoms. There is a well-known short-range singularity when polarizable atoms interact which can be circumvented using damped interactions as introduced by Thole\autocite{thole_molecular_1981}. When using Thole damping, the dipole ineraction tensor is modified in such a way that the short range singularity becomes physically inaccessible (although it still exists in principle, just at distances too short to sample in any reasonable simulation).
+
+\par The Thole-type water models (TTM) used a simple parameterization based on MP2/CBS calculations of the \ce{(H2O)2} PES to generate quite accurate water models\autocite{burnham_development_2002,burnham_development_2002-1,fanourgakis_flexible_2006,fanourgakis_development_2008}. The non-linearity of the dipole moment surface in TTM models resulted in the first water models to correctly capture the opening of the bend angle in water going from the gas phase to condensed phases\autocite{fanourgakis_bend_2006}.
+
+\par Another approach to developing accurate advanced force fields was popularized by Joel Bowman in the form of permutationally invariant polynomials (PIPs)\autocite{braams_permutationally_2009}. This technique allows for relatively high-dimensional functions to be explicitly fit as long as sufficient data is available. Even more importantly, PIPs respect the relevant physical symmetries in that the energy is translationally, rotationally, and permutationally invariant (that is, swapping identical atom types does not change the energy). This innovation in function-fitting was cleverly combined with the many-body expansion, a technique we will discuss in detail in the next section, to produce extremely accurate models. The earliest of these models are the HBB2\autocite{huang_ab_2006} and WHBB\autocite{wang_full-dimensional_2009} models. These same techniques were used by Francesco Paesani \textit{et al.} to create the excellent MB-Pol water model\autocite{babin_toward_2012, babin_development_2013, babin_development_2013-1, babin_development_2014}, which debatably remains the most accurate water model into 2021. It is worth mentioning that a recent model, MB-UCB\autocite{das_development_2019}, has been released which, in the spirit of TTM, avoids the heavy parameterization of PIP-based models while achieving accuracy comparable to MB-Pol.
+
+\par Advanced force fields have been very important in the study of water and many other systems. At this point, the theoretical chemistry community is very proficient at developing these force fields with a variety of different approaches. While excellent progress has been made, developing advanced force fields is inherently difficult and once a model is complete, it is very difficult to sufficiently validate its accuracy. Even worse, these force fields are often system-specific and it is very difficult, if not impossible, to extend the potential to include atoms other than those which the model originally included. For instance, models based on explicitly fitting terms in the many-body expansion suffer from a combinatorial explosion of tuples of atom-types. For this reason, it is very unlikely that models based on the MBE will ever progress beyond two-component systems and some three-component systems of special interest.
+
+\par While advanced force fields partially solve the problem of bridging the gap between \textit{ab initio} methods and MM force fields, they fail to be universal or easily extensible. Therefore, new approaches to bridge this gap need to be explored. One such approach, leveraging the many-body expansion, is the subject of this thesis.
+
+\chapter{The Many-Body Expansion}
+
+\par The many-body expansion (MBE) is an important tool first used in theoretical chemistry to quantify non-additivities in molecular interactions.\autocite{hankins_hydrogen-bond_1970} The MBE is able to do this by breaking down a system into physically meaningful fragments. These fragments might be individual molecules or sub-units of a covalently bound system (i.e. functional groups). In principle, just about any property can be written in terms of the MBE, but we will focus on the energy and forces as these are the most important properties for our purposes.
+
+\par The binding energy of a system can be written in terms of 1-body, 2-body, 3-body, all the way to $n$-body terms, where $n$ is the number of fragments, as follows:
+\begin{align}
+    E_{1B} &= \sum_{i=1}^nE(i)-E_{ref,i} \\
+    E_{2B} &= \sum_{i<j}E(i,j)-E(i)-E(j) \\
+    E_{3B} &= \sum_{i<j<k} E(i,j,k)-E(i,j)-E(i,k)-E(j,k)+E(i)+E(j)+E(k)
+\end{align}
+
+In the above equations, $E(i)$ is the energy of the $i$th fragment in the system and $E_{ref,i}$ is a reference energy for that same fragment. Hence, $E_{1B}$ can be interpreted as a deformation energy. The total binding energy is the sum of all of the $E_{iB}$ terms. If $E_{3B}=0$, then the interactions are strictly pairwise additive, as would be the case for non-polarizable systems. This can be a good approximation for very weakly interacting systems, but for systems like water with strong, directional interactions, the 3-body component of the binding energy can be larger than 20\% of the total.\autocite{xantheas_ab_1994}
+
+\par The MBE can be written in a more concise manner for any $k$-body term, $k<n$, by noticing that every fragment appears in a particular term the same number of times and that number is a binomial coefficient related to the order of interest, $k$, and the total number of fragments $n$. For the sake of generality, I will write this expression in terms of a 3$N$-dimensional force vector, $\mathbf{f}_N$, where $N$ is the total number of atoms. The $k$-body contribution to the forces, $\mathbf{f}_N^{(k)}$ is,
+\begin{equation}
+    \mathbf{f}_N^{(k)}=\sum_{m=1}^k(-1)^{N-k}\binom{N-m-1}{k-m}\sum_{n=1}^{\binom{n}{m}}\mathbf{f}_N^{(m)}.
+\end{equation}
+
+Notice that one would normally think of the $k$-body forces as being a vector of dimension $3k$. In this case, however, all force vectors $\mathbf{f}_N^{(m)}$ are $3N$-dimensional such that each atom only contributes to the indices of that atom in the total system. The forces for all other indices are filled with zeros. This expansion allows for the propagation of nuclear dynamics, as in ordinary MD, with a many-body description of the forces. There are many possible advantages to expanding forces in terms of the MBE, not the least of which is that the total system size is split into many small sub-systems, effectively circumventing the computational scaling of the method used to describe the forces. This particular advantage will be discussed in detail in the next two chapters.
+
+\par The MBE can actually be used to expand any molecular property, such as dipole moments and polarizabilites\autocite{medders_many-body_2013} or even vibrational frequencies\autocite{howard_n-body_2013,heindel_origin_2018}. To go even further, each term in the MBE need not be calculated at the same level of theory or use the same type of technique to describe the forces and energies. In fact, calculating a 2-body term is vastly cheaper than calculating a 3-body term because each sub-system in a 3-body term contains an additional fragment and the total number of sub-systems increases combinatorially. The same goes when moving from the 3-body to 4-body term assuming the total number of fragments is more than around eight. This means that one could easily envision combining \textit{ab initio} techniques, for the 1- and 2-body terms, with advanced force fields for all higher-order terms. This means that the cost of evaluating the forces and energy of a system with an \textit{ab initio} method can essentially be reduced to the cost of calculating the 2-body part of the MBE, assuming a sufficiently accurate potential is available to calculate the higher-order terms. There are many such force fields for water, and it seems likely that a general distributed multipole analysis would be sufficiently accurate for arbitrary systems. This topic will be discussed further in chapter 5.
 
 \chapter{The many-body expansion for aqueous systems revisited: I. Water-water interactions}
 
@@ -337,7 +405,7 @@ $$
 
 or by substituting $x_C=R/2$,
 \begin{equation}\label{eq:MBE_I_1}
-    A=1+erf(\frac{-R}{2\sqrt{2}}.
+    A=1+erf\left(\frac{-R}{2\sqrt{2}}\right).
 \end{equation}
 
 The BSSE correction for the individual 2-body terms is fit to the function
@@ -350,16 +418,16 @@ where $a$ and $b$ are constants.
 \uwsinglespace
 \centering
 \includegraphics[width=\textwidth]{Figures/Chapter_2/cluster_structures.png}
-\label{fig:MBE_I_F1}
 \caption[Water cluster isomers used in the MBE analysis.]{Water cluster isomers used in the MBE analysis.}
+\label{fig:MBE_I_F1}
 \end{figure}
 
 \begin{figure}[t]
 \uwsinglespace
 \centering
 \includegraphics[width=\textwidth]{Figures/Chapter_2/W10_MP2_MB.pdf}
-\label{fig:MBE_I_F2}
 \caption[Magnitude of the uncorrected (top) and BSSE-corrected (bottom) 1- through 10-body MBE terms for the \ce{(H2O)_{10}} cluster. Note the magnification (10 – 1000X) of the y-axis in the middle and right panels used to indicate the small magnitude of the higher-order relative to the ones for the 2- and 3-body terms.]{Magnitude of the uncorrected (top) and BSSE-corrected (bottom) 1- through 10-body MBE terms for the \ce{(H2O)_{10}} cluster. Note the magnification (10 – 1000X) of the y-axis in the middle and right panels used to indicate the small magnitude of the higher-order relative to the ones for the 2- and 3-body terms.}
+\label{fig:MBE_I_F2}
 \end{figure}
 
 \begin{figure}[t]
@@ -372,8 +440,8 @@ where $a$ and $b$ are constants.
 \includegraphics[width=.9\textwidth]{Figures/Chapter_2/MB_extrap_w10_BSSE_all.pdf}
 \end{minipage}
 \end{center}
-\label{fig:MBE_I_F3}
 \caption[Convergence of the uncorrected (left) and BSSE-corrected (right) 4- through 10-body terms in the many-body expansion for \ce{(H2O)_{10}} for the various basis sets. Notice the different y-axis scales.]{Convergence of the uncorrected (left) and BSSE-corrected (right) 4- through 10-body terms in the many-body expansion for \ce{(H2O)_{10}} for the various basis sets. Notice the different y-axis scales.}
+\label{fig:MBE_I_F3}
 \end{figure}
 
 \begin{figure}[t]
@@ -386,8 +454,8 @@ where $a$ and $b$ are constants.
 \includegraphics[width=.9\textwidth]{Figures/Chapter_2/MB_extrap_w7_BSSE.pdf}
 \end{minipage}
 \end{center}
-\label{fig:MBE_I_F4}
 \caption[Convergence of the uncorrected (left) and BSSE-corrected (right) 4- through 7-body terms in the many-body expansion for \ce{(H2O)7} for the various basis sets. Notice the different y-axis scales.]{Convergence of the uncorrected (left) and BSSE-corrected (right) 4- through 7-body terms in the many-body expansion for \ce{(H2O)7} for the various basis sets. Notice the different y-axis scales.}
+\label{fig:MBE_I_F4}
 \end{figure}
 
 \begin{figure}[t]
@@ -400,31 +468,31 @@ where $a$ and $b$ are constants.
 \includegraphics[width=\textwidth]{Figures/Chapter_2/4_B_6_B_perc_vs_n.pdf}
 \end{minipage}
 \end{center}
-\label{fig:MBE_I_F5}
 \caption[The absolute magnitudes (left) and percentage contributions (right) of the 4- to 6-body terms to the MP2/AVDZ binding energy for (H2O)n, n = 7, 10, 13, 16 and 21. The uncorrected (dashed lines) and BSSE-corrected results (solid lines) are shown.]{The absolute magnitudes (left) and percentage contributions (right) of the 4- to 6-body terms to the MP2/AVDZ binding energy for (H2O)n, n = 7, 10, 13, 16 and 21. The uncorrected (dashed lines) and BSSE-corrected results (solid lines) are shown.}
+\label{fig:MBE_I_F5}
 \end{figure}
 
 \begin{figure}[t]
 \uwsinglespace
 \centering
 \includegraphics[width=.9\textwidth]{Figures/Chapter_2/E_2B_7_10.pdf}
-\label{fig:MBE_I_F6}
 \caption[Convergence of the uncorrected and BSSE-corrected total 2-body energy for \ce{(H2O)7} and \ce{(H2O)_{10}} with the AVXZ basis sets.]{Convergence of the uncorrected and BSSE-corrected total 2-body energy for \ce{(H2O)7} and \ce{(H2O)_{10}} with the AVXZ basis sets.}
+\label{fig:MBE_I_F6}
 \end{figure}
 
 \begin{figure}[t]
 \uwsinglespace
 \centering\includegraphics[width=.9\textwidth]{Figures/Chapter_2/E_3B_7_10.pdf}
-\label{fig:MBE_I_F7}
 \caption[Convergence of the uncorrected and BSSE-corrected total 3-body energy for \ce{(H2O)7} and \ce{(H2O)_{10}} with the AVXZ basis sets.]{Convergence of the uncorrected and BSSE-corrected total 3-body energy for \ce{(H2O)7} and \ce{(H2O)_{10}} with the AVXZ basis sets.}
+\label{fig:MBE_I_F7}
 \end{figure}
 
 \begin{figure}[t]
 \uwsinglespace
 \centering
 \includegraphics[width=.9\textwidth]{Figures/Chapter_2/percent_corr_HF_7_10.pdf}
-\label{fig:MBE_I_F8}
 \caption[Percentage of the total binding energy from HF and correlation for \ce{(H2O)7} and \ce{(H2O){10}} using the monomer and cluster basis at each of the AVXZ basis sets.]{Percentage of the total binding energy from HF and correlation for \ce{(H2O)7} and \ce{(H2O){10}} using the monomer and cluster basis at each of the AVXZ basis sets.}
+\label{fig:MBE_I_F8}
 \end{figure}
 
 \begin{figure}[t]
@@ -432,8 +500,8 @@ where $a$ and $b$ are constants.
 \begin{center}
 \includegraphics[width=\textwidth]{Figures/Chapter_2/2body_bsse_decay_with_basis.tif}
 \end{center}
-\label{fig:MBE_I_F9}
 \caption[Variation of the BSSE correction for the 2-body terms with the O-O distance between fragments with the different basis sets used in this study. Solid lines represent least mean squares fits of the data to the function $a(1+erf(-bR_{OO}))$ for each basis set.]{Variation of the BSSE correction for the 2-body terms with the O-O distance between fragments with the different basis sets used in this study. Solid lines represent least mean squares fits of the data to the function $a(1+erf(-bR_{OO}))$ for each basis set.}
+\label{fig:MBE_I_F9}
 \end{figure}
 
 \begin{figure}[t]
@@ -441,8 +509,8 @@ where $a$ and $b$ are constants.
 \begin{center}
 \includegraphics[width=\textwidth]{Figures/Chapter_2/2body_bsse_correlation.tif}
 \end{center}
-\label{fig:MBE_I_F10}
 \caption[Predicted versus calculated BSSE correction for the individual 2-body terms of the clusters with the different basis sets used in this study.]{Predicted versus calculated BSSE correction for the individual 2-body terms of the clusters with the different basis sets used in this study.}
+\label{fig:MBE_I_F10}
 \end{figure}
 
 \begin{table}[]
@@ -547,7 +615,7 @@ Cluster & 1-Body          & 2-Body           & Sum of 3- to 5-Body & Total Corre
 2-B          & -13.359            & -13.428                & -13.479                    \\
 3-B          & -2.510             & -2.460                 & -2.360           \\ \bottomrule         
 \end{tabular}
-\caption[The MP2/AVQZ and CCSD(T)/AVQZ 1-, 2-, and 3-body terms for \ce{(H2O)3} at the MP2/AVQZ and CCSD(T)/AVQZ geometries. The notation CCSD(T)/AVQZ//MP2/AVQZ means CCSD(T)/AVQZ energies are calculated the MP2/AVQZ optimized geometry. The relevant monomer reference energies (from left to right), in a.u., are -76.35191864, -76.36358738, and -76.3635876.]{The MP2/AVQZ and CCSD(T)/AVQZ 1-, 2-, and 3-body terms for \ce{(H2O)3} at the MP2/AVQZ and CCSD(T)/AVQZ geometries. The notation CCSD(T)/AVQZ//MP2/AVQZ means CCSD(T)/AVQZ energies are calculated the MP2/AVQZ optimized geometry. The relevant monomer reference energies (from left to right), in a.u., are -76.35191864, -76.36358738, and -76.3635876.}
+\caption[The MP2/AVQZ and CCSD(T)/AVQZ 1-, 2-, and 3-body terms for \ce{(H2O)3} at the MP2/AVQZ and CCSD(T)/AVQZ geometries. The notation CCSD(T) /AVQZ//MP2/AVQZ means CCSD(T)/AVQZ energies are calculated the MP2 /AVQZ optimized geometry. The relevant monomer reference energies (from left to right), in a.u., are -76.35191864, -76.36358738, and -76.3635876.]{The MP2/AVQZ and CCSD(T)/AVQZ 1-, 2-, and 3-body terms for \ce{(H2O)3} at the MP2/AVQZ and CCSD(T)/AVQZ geometries. The notation CCSD(T)/AVQZ//MP2/AVQZ means CCSD(T)/AVQZ energies are calculated the MP2/AVQZ optimized geometry. The relevant monomer reference energies (from left to right), in a.u., are -76.35191864, -76.36358738, and -76.3635876.}
 \label{tab:MBE_I_T4}
 \end{table}
 
@@ -924,5 +992,221 @@ Ion outside      & -3.791 (23.5) & -12.843 (79.5) & 0.489 (-3.0)  & -16.145 (100
 \caption[Scaled 2-Body BSSE values for all 336 ion-water and water-water dimers cut from \ce{Z^-(H2O)9} where \ce{Z} = \ce{Cl^-}, \ce{Br^-}, and \ce{I^-} as well as two neutral water clusters of \ce{(H2O)7} and \ce{(H2O)_{10}}. Each energy is scaled by the size of the BSSE-correction of the corresponding \ce{Z^-(H2O)} dimer or that of a neutral water dimer. Each distance is scaled by the equilibrium center-to-center distance in those same dimers. See text for more detail.]{Scaled 2-Body BSSE values for all 336 ion-water and water-water dimers cut from \ce{Z^-(H2O)9} where \ce{Z} = \ce{Cl^-}, \ce{Br^-}, and \ce{I^-} as well as two neutral water clusters of \ce{(H2O)7} and \ce{(H2O)_{10}}. Each energy is scaled by the size of the BSSE-correction of the corresponding \ce{Z^-(H2O)} dimer or that of a neutral water dimer. Each distance is scaled by the equilibrium center-to-center distance in those same dimers. See text for more detail.}
 \label{fig:MBE_II_12}
 \end{figure}
+
+\chapter{Molecular Dynamics Driven by the Many-Body Expansion (MBE-MD)}
+
+\section{Introduction}
+
+\par Molecular dynamics (MD) is one of the most common and powerful tools used for studying a wide range of properties of molecular systems.\autocite{bankura_hydration_2013,bernardi_enhanced_2015,durrant_molecular_2011,hospital_molecular_2015,probst_molecular_1985} It is effective as a means for generating ensembles, as well as characterizing the dynamic response of systems. As with many theoretical tools, MD suffers from the persistent trade-off between computational cost and accuracy. The source of this problem in MD simulations arises almost entirely from the choice of potential energy surface (PES) used to generate the energies and forces between atoms. Ideally, one would be able to use highly accurate electronic structure methods, either single reference, such as Coupled Cluster with singles, doubles, and perturbative triple excitations (CCSD(T)),\autocite{bartlett_coupled-cluster_1989} or multi-reference based ones, such as MCSCF\autocite{schmidt_construction_1998}, MRCI\autocite{werner_selfconsistent_1982}, MRCC\autocite{mukherjee_linked-cluster_1986}, CASPT2\autocite{finley_multi-state_1998} or DMRG.\autocite{schollwock_density-matrix_2005} These calculations are, however, far too expensive (formally scaling as $N^a$, where $a \geq 6$) to be used for any practical MD simulations of realistic systems.
+
+\par The scalability issue has resulted in two paradigms for generating the forces in MD simulations. The first paradigm, commonly known as a molecular mechanics (MM)\autocite{karplus_molecular_2005,karplus_molecular_2002,karplus_molecular_1990,rappe_uff_1992,engler_critical_1973,still_semianalytical_1990} approach, is to strip the electrons and approximate the energies and/or forces using closed-form equations based on functions that are deemed appropriate to describe the underlying interactions such as the Lennard-Jones potential or simple bond, angle, and dihedral potentials. The second paradigm, commonly known as ab initio or Born-Oppenheimer molecular dynamics (AIMD/BOMD),\autocite{car_unified_1985,barnett_born-oppenheimer_1993,worth_beyond_2004,li_ab_2005,tuckerman_ab_1996} is to retain the electronic degrees of freedom and generate the energies and forces from a relatively more affordable electronic structure method, such as density functional theory (DFT). The most well-known implementation of this paradigm is Car-Parrinello dynamics.\autocite{car_unified_1985} Each of these paradigms have distinct advantages and disadvantages, which we will briefly outline in order to provide the context of why our proposed MBE-MD implementation aims at getting the best of both worlds.
+
+\par The simplest types of MM force fields describe the energy of a molecule in terms of bond distances, angles, and dihedral angles. These potential functions are extremely fast to evaluate but they are very crude approximations of the underlying intermolecular interactions and they do not contain descriptions of electrons. The field has evolved over the years from the simpler to more sophisticated descriptions of the various pieces of the interactions while at the same time improving their scalability and accuracy by explicitly fitting to high-level electronic structure calculations. For example, this approach has resulted in ab-initio based water potentials such as MB-Pol\autocite{babin_toward_2012,babin_development_2013,babin_development_2014,medders_development_2014}, WHBB\autocite{wang_full-dimensional_2009,wang_towards_2010,wang_flexible_2011}, MB-UCB\autocite{das_development_2019} and the Thole-type family of potentials.\autocite{fanourgakis_flexible_2006,fanourgakis_development_2008,burnham_development_2002} There are obviously numerous drawbacks of the MM paradigm; in short, these ab-initio based potentials generally suffer from a lack of universality and transferability. For example, even though one can fit very accurate potentials to often tens of thousands of electronic structure calculations, these are only applicable to a specific system, and they are not transferable. On the other hand, the relatively simple force fields that are more general are almost never quantitatively accurate, because it is just not possible to distill the salient features of a wide range of intermolecular interactions requiring formal quantum mechanical descriptions into simple functional forms.
+
+\par The AIMD/BOMD paradigm naturally avoids problems related to generality because the approximations used to solve the electronic Schrodinger equation, such as for example Density Functional Theory (DFT) are, in principle, valid for any system. This means that one can easily study a family of similar systems with AIMD, where that could be quite difficult with MM. The major drawback lies in the large number of energy and gradient evaluations that are needed to propagate the dynamics, and this restricts the choices of used electronic structure methods to the ones with lower scaling, typically DFT and more recently MP2.\autocite{kuhne_cp2k_2020} An additional complexity is associated with the choice of the DFT functionals\autocite{perdew_density_2001}, and the realization that a “universal” density functional that accurately describes a wide range and different classes of interactions has yet to be developed. Nonetheless, AIMD generally results in simulations that are more trustworthy and accurate for a variety of systems than can be achieved with simple MM approaches. Noted exceptions are classical force fields that are parametrized for a specific system such as the family of TTM, MB-pol, HBB2 or MB-UCB potentials for water.\autocite{babin_development_2013,babin_development_2014,medders_development_2014,das_development_2019,fanourgakis_bend_2006,fanourgakis_development_2008,burnham_development_2002} Even so, one would ideally like to be able to use highly correlated, more accurate but higher scaling methods, such as CCSD(T), rather than DFT. However, as of yet, this has not been possible for all but the simplest molecular systems (typically with less than 30 atoms) and even for those, one is restricted to geometry optimizations and harmonic frequency calculations with no reported examples of converged dynamics calculations.
+
+\par Clearly, the ideal situation would be to have all of the generality and accuracy of ab initio methods combined with the reduced scalability of MM methods. It has been previously proposed\autocite{herbert_fantasy_2019} that the many-body expansion (MBE) is a viable approach to reap the benefits of both of these paradigms. Indeed, the MBE or its variants have been used successfully as the basis for the development of the aforementioned highly accurate water potentials.\autocite{babin_development_2013,babin_development_2014,medders_development_2014,das_development_2019,fanourgakis_bend_2006,fanourgakis_development_2008,burnham_development_2002} The MBE has also been successful as a way of mixing multiple electronic structure methods to allow for benchmarking and geometry optimizations of large gas-phase clusters.\autocite{bates_development_2011,bates_efficient_2011,howard_n-body_2013} A comprehensive review of the pros and cons of the many different fragment-based quantum chemistry methods has been recently summarized by Herbert.\autocite{herbert_fantasy_2019}
+
+\par One of the most useful features of the MBE in terms of its applicability to MD simulations is the tremendous flexibility in the level of theory that can be used at different orders of the MBE. Past work shows that highly correlated methods and large basis sets only need to be used for the 1- and 2-body parts of the MBE, while the 3-body and higher-order terms are nearly saturated both in terms of electronic structure method and basis when at the  HF/aug-cc-pVDZ level of theory.\autocite{heindel_many-body_2020} Another advantage of the MBE in driving AIMD simulations is the possibility of using purely classical descriptions for the many-body terms, which would make the most expensive part of the MBE (in terms of both system size and number of fragments) essentially free.
+
+\par There have been previous reports of AIMD simulations driven by the MBE,\autocite{liu_structure_2017,liu_hydrogen-bond_2018,willow_ab_2015,he_second-order_2012} which employed either the electrostatically-embedded (EE) formalism proposed by Dahlke and Truhlar,\autocite{dahlke_electrostatically_2007} the embedded-fragment method,\autocite{willow_ab_2015} or the field-adapted adjustable density matrix assembler approach of Exner and Mezey.\autocite{exner_field-adapted_2004} Another approach to circumvent the poor scaling of electronic structure is the molecular tailoring approach (MTA).\autocite{sahu_molecular_2014} In this approach, one splits the system into many different overlapping sub-fragments, which are often larger than just a single molecule. Any electronic structure property of interest can then be calculated on these fragments and recombined via the inclusion-exclusion principle to approximate properties of the full system. The MTA can even be applied to large biomolecules, by choosing fragments which break covalent bonds.\autocite{ganesh_molecular_2006} One of the earliest, and most influential, fragmentation schemes is the molecular fractionation with conjugate caps (MFCC), which decomposes large molecules in sub-systems, capping broken covalent bonds with hydrogen atoms.\autocite{zhang_molecular_2003,he_new_2005,he_generalized_2006} This technique inspired further extensions such as the electrostatically-embedded generalized molecular fractionation with conjugate caps (EE-GMFCC), which can be seen as a combination of MFCC and EE-MBE. EE-GMFCC has been used for Hartree-Fock calculations on proteins and scales linearly with system size.\autocite{wang_electrostatically_2013} The same technique was recently adapted to ion-water clusters where MP2/aug-cc-pVDZ calculations of the \ce{(H2O)_{43}(Na^+)_6(Cl^-)_6} cluster were carried out.\autocite{liu_fragment_2017} These are truly remarkable calculations, which demonstrate the promise of fragmentation approaches for large scale quantum mechanical studies. Finally, virtually every fragment-based method that has already been reported can be derived as a scheme related to the generalized many-body expansion.\autocite{richard_generalized_2012}
+
+\par While electrostatic embedding and generalized fragmentation are undoubtedly useful and very promising, they create trade-offs which are not obviously advantageous. One complication with embedded charges is the need to self-consistently change them throughout the course of an MD simulation in order for the energy to be conserved.\autocite{liu_variational_2019} This problem can also be circumvented by using fixed charges as in the EE-GMFCC model. Generalized fragmentation also comes with trade-offs by making the zero-order description of each fragment more expensive, and actually increasing the number of fragments needed at each order due to the increased number of unions of each individual fragment with the others. This increased number of unions of fragments and the cost of each calculation are meant to be balanced by faster convergence and better ability to screen fragments due to the better localization of interactions. Finally, generalized fragmentation has as-of-yet unsolved problems when it comes to molecular dynamics. That is, in general, one will need to limit the number of possible intersections in generalized fragmentation using distance thresholding. This means that as the dynamics proceed, the number and identity of fragments might change, which effectively changes the level of theory being used, and hence leads to discontinuous dynamics. To alleviate the problem, one would need to use switching functions, or something similar in order to transition smoothly when the number or identity of fragments changes. These complications make it much harder to assess the validity and usefulness of driving molecular dynamics with the MBE, so we do not use them at all in this work.
+
+\par In this study we will describe a protocol for performing MD simulations driven by the MBE (MBE-MD) and we will apply this to the gas phase \ce{(H2O)_{10}} water cluster based on energies and forces derived using the TTM2.1-F and MB-Pol water potentials. We aim to introduce MBE-MD as a method, which holds promise for incorporating higher-level electronic structure methods used to describe the various MBE terms during classical and nuclear statistical mechanical MD simulations. There have been many applications of the MBE to the study of minimum energy configurations,\autocite{dahlke_electrostatically_2007,richard_generalized_2012,cui_theoretical_2006} but very few studies of the convergence of properties associated with dynamics such as the forces and frequencies, where extended regions of configuration space must be accurately characterized. Of the studies of these properties that do exist, there is some indication that the forces and frequencies may converge even slower than energies, requiring up to a 5-body term at times.\autocite{demerdash_convergence_2016,demerdash_assessing_2017} Note that previous work indicates that the binding energies converge by the 4-body term and that the percentage contribution of higher-order terms does not depend on cluster size despite the increasing number of relevant configurations\autocite{heindel_many-body_2020}. Presumably, this is because the interactions contributing to the 5-body and higher terms are very short-range, so the percentage of configurations with a sizable 5-body contribution does not increase with cluster size. Our calculations seem to indicate, however, that a 4-body description of the forces is sufficient for \ce{(H2O)_{10}}, which we expect will generalize to other water clusters and perhaps the condensed phase. In Section 5.2 we describe our MBE-MD implementation and its asymptotic scaling with system size depending on the cost of the underlying electronic structure method used. The results of the classical MBE-MD simulations and their straightforward extension to Path Integral MBE-MD simulations are presented in Section 5.3. Final conclusions are drawn in Section 5.4.
+
+\section{The MBE-MD Implementation}
+\subsection{Computational protocol}
+
+\par The MBE in terms of the energies has been reported in several places before,\autocite{herbert_fantasy_2019,heindel_many-body_2020,xantheas_ab_1994} however, here we adopt a closed-form expression in terms of the forces,\autocite{lao_understanding_2016} viz.
+\begin{equation}
+    f_N^{(k)}=\sum_{m=1}^k(-1)^{N-k}\binom{N-m-1}{k-m}\sum_{n=1}^{\binom{N}{m}}f_n^{(m)}
+\end{equation}
+where $f_N^{(k)}$ is the $k$-body vector of forces on each atom in the $N$ atom system. Notice that $f_N^{(m)}$ is also an $N$-dimensional vector of forces, however, all force vectors will be the zero vector except for those where the indices of the $n$th fragment are non-zero. This form of the MBE is also computationally more useful than other ways of writing the MBE since it removes all data dependencies between the individual -body fragments, requiring instead only the sum of all forces (or energies) at each order.
+
+\par We have carried out both NVE and NVT classical MD simulations of the \ce{(H2O)_{10}} cluster at varying temperatures as well as varying levels of the MBE. Specifically, we drive the dynamics with energies and forces generated at the 2-, 3-, and 4-body ranks, as well as running the ordinary dynamics with the full n-body potential for comparison. We further demonstrate the straightforward extension to nuclear statistical dynamical simulations. All classical and path integral MD simulations were run using the i-PI software package.\autocite{kapil_i-pi_2019} We use a time step of 0.25 fs for each of the three simulations containing 16, 32, and 64 beads.
+To obtain a relatively complete picture of how the dynamics converged with increasing orders of the MBE, we computed the vibrational density of states (VDOS) via the Fourier transform of the velocity autocorrelation function (VACF) defined as
+
+\begin{equation}
+    VACF=\frac{\langle v(0)\cdot v(t)\rangle}{\langle v(0)\cdot v(0)\rangle}
+\end{equation}
+
+\par Here $\langle\cdots\rangle$ represents the average over all time lags of length $t$ in a signal and $v(0)$ is the velocity vector at some initial time $t=0$. This correlation function is then Fourier transformed to retrieve the VDOS. We chose to use this as a measure of the convergence of the dynamics, as the VDOS will include the full anharmonicities and avoids condensing the forces into some kind of average quantity, which may not clearly represent the dynamics generated at varying orders of the MBE.
+
+\par In order to compute the VDOS with sufficient statistical sampling, we spawned NVE simulations from an NVT simulation every 10 ps of simulation time, resulting in a total of 120 total NVE samples. These NVE trajectories are run for 80 ps each, which is adequate time for the velocities to de-correlate at the simulation temperatures of T = 50, 100, 150, and 200K. Note that at higher temperatures the velocities de-correlate more quickly, allowing for shorter NVE simulations, but more samples from the NVT simulation are required to converge the simulation than at lower temperatures due to a larger volume of accessible phase space. The set of 120 samples appears to be sufficient for converging the VDOS at T = 200K, therefore we used this number of samples at all temperatures.
+
+\par While the main goal of this study is to provide a proof-of-principle of the MBE-MD approach, we also want to investigate the convergence of the MBE for frequencies when there is a range of interaction strengths within a molecular system. This is clearly the case in water clusters, as manifested by the presence of hydrogen bonds of varying strengths as well as free OH stretches, and several low frequency librational modes. To investigate this, we optimized the \ce{(H2O)_{10}} cluster using a 2-, 3-, and 4-body representation of the MB-Pol potential and performed a harmonic analysis at each geometry to see how the frequencies compare, mode by mode, to the harmonic frequencies on the full PES. Similar comparisons have been carried out before\autocite{howard_n-body_2013,he_second-order_2012,sahu_low_2014} corroborating the convergence patterns we observe (vide infra).
+
+\subsection{Asymptotic scaling}
+
+\par One common advantage of the MBE is that it will allow larger systems to be studied with high-accuracy methods because of its trivially parallelizable nature in conjunction with the fact that many electronic structure methods can be efficiently parallelized up to a very large number of processors depending on the size of the fragment (dimer, trimer, tetramer, etc.). Another point, which seems to be overlooked quite often, is that calculating the $k$-body term of the MBE scales as $O(N^k)$ because the number of $k$-body fragments in an $N$-body system is given by the binomial coefficient $\binom{N}{m}=\frac{N!}{k!(N-k)!}$, which reduces to a polynomial of leading order $N^k$. This is important because methods like DFT and MP2 formally scale as $O(N^3)$-$O(N^4)$ and $O(N^5)$, respectively. Therefore, if a 3- or 4-body representation of the PES is required, at least in the asymptotic sense, the MBE may not buy any gain in speed compared to the full calculation with these methods.
+
+\par To make this point clearer, we have plotted the expected factor speed-up for an -body system when using a representation of the potential up to 3-body (Figure \ref{fig:MBE_MD_F1}, left panel) and 4-body (Figure \ref{fig:MBE_MD_F1}, right panel). These speed-ups were calculated by assigning an arbitrary time of one unit to the calculation of a monomer, and then using the formal scaling of the method to calculate the time it should take to compute the MBE and the time it would take to do the full calculation. For instance, at the 3-body level, the total calculation time would be $\binom{N}{3}3^m+\binom{N}{2}2^m+\binom{N}{1}1^m$ for an $N$-body system, where each fragment is calculated with a method that scales as $O(N^m)$. Notice that this analysis ignores the relative pre-factors, but the pre-factor on the MBE is $1/k!$, which is likely to be smaller than the pre-factor on the scaling of common electronic structure methods. It is readily seen that for truncation to the 3-body term (Figure \ref{fig:MBE_MD_F1}, left panel) there are no savings for traditional DFT, scaling as $N^3$, and there are only small speedups for HF or DFT functionals that include HF exchange scaling as $N^4$, whereas at least MP2 is required to achieve speedups when truncation to the 4-body is required.
+
+\par One should only expect to see gains from the MBE when the maximum order of the MBE is smaller than the polynomial scaling of the method used to compute the potential energies of each fragment. This means that for linear or even low scaling methods, the MBE will never be more efficient than just carrying out the full calculation. Figure \ref{fig:MBE_MD_F2} shows the relative speedups of the MBE truncated at the 3- (dotted lines) and the 4-body (solid lines) terms relative to the calculation of the full system for the MP2 (formal scaling as $N^5$) and the CCSD(T) (formal scaling as $N^7$) electronic structure methods. As it can be seen, the more expensive (larger scaling with $N$) the electronic structure method is, the larger the speedup for truncation to the 3- or the 4-body term. For instance, for N=10 there is a ~40´ speedup of the MBE truncated at the 3-body term over the full calculation at the CCSD(T) level of theory with this speedup increasing to >500´ for N=20 and to >48,000´ for N=64. The MBE calculation can be furthermore made more efficient by realizing that there is an optimum (different) number of processors that can be used for the parallelization of the corresponding dimer and trimer subclusters.
+
+\par The above discussion presents the worst-case scenario for the scaling of the MBE with respect to the full calculation, yet it still looks encouraging if one wishes to use a method like CCSD(T), which scales as $O(N^7)$. The cost and scaling of the MBE can be further improved for larger systems by 
+\par (i) evaluating the 3-body terms at a lower level of theory, such as HF or even using classical schemes, as previously suggested40,
+\par (ii) developing descriptors that can be used to screen and discard or even approximate the calculation of trimers if they are, for example, too far apart. Indeed, there have been applications of both distance thresholding56 and energy thresholding,63 the latter achieving near-linear scaling in the 3-body term while introducing an overall error of less than 0.1 kJ/mol,
+\par (iii) refining the thresholding schemes, a fact that can result in a more effective scaling of the 3- and 4-body terms since even the existing distance and energy thresholds would greatly improve the speedup for these higher-order terms,
+\par (iv) applying machine learning or artificial intelligence approaches to discard trimers and/or tetramers and even approximate the 2-body energies based on distance thresholds.
+
+\section{Results and Discussion}
+\subsection{Averages from Classical Dynamics and Vibrational Density of States}
+\par We have recently reported an exhaustive analysis of the convergence of each many-body term in the MBE for water clusters.\autocite{heindel_many-body_2020} One result from that study, which corroborates similar calculations from earlier work,\autocite{lao_understanding_2016} is that in water clusters the energy is quantitatively recovered (within about <2\%) by the 4-body term. The breakdown of the contribution to the binding energy is roughly 80\%, 18\%, and 2\% from the 2-, 3-, and 4-body terms, respectively. The 1-body term also makes a small repulsive contribution due to deformation of the monomers caused by the formation of the hydrogen bonds.
+
+\par One obvious question, which has not been addressed before, is whether the convergence of the average potential energy during an MBE-MD simulation will follow the same pattern as for the MBE for a fixed geometry, i.e., at the minimum energy structure. Figure \ref{fig:MBE_MD_F3} shows the average potential energy taken from twelve different MBE-MD simulations. During these twelve simulations the dynamics of \ce{(H2O)_{10}} were driven by a 2-, 3-, and 4-body representation of the MB-Pol potential at temperatures of 50K, 100K, 150K, and 200K. Additionally, we ran classical MD simulations with the full potential at these temperatures. The T = 0K results correspond to an ordinary MBE for the optimized structure of \ce{(H2O)_{10}} cluster.
+
+\par From Figure \ref{fig:MBE_MD_F3} it is seen that at the temperatures considered in this study the average potential energy follows essentially the same convergence pattern as the convergence of the binding energy for static geometries. This finding suggests that being higher up in the potential-well does not affect the relative contributions of each term in the MBE. Interestingly, while the magnitudes of the 3- and 4-body contributions to the energy are quite similar within each temperature, their percentage of the total energy increases with temperature. Thermal energy seems to increase the 2-, 3-, and 4-body energies equally, suggesting that the percentage of the 3- and 4-body energies grows as the percentage of the 2-body energy shrinks. The non-constant percentage contribution of the many-body energy and forces may explain why pairwise additive potentials have a difficult time describing a range of temperatures and pressures. This class of potentials attempts to fold the many-body effects into an effective 2-body term, usually by using an enhanced dipole with respect to the gas phase monomer. The fact that the percentage contribution of many-body effects to the total energy is not constant with temperature means that the accuracy of this class of potentials will degrade as one moves further away from the region of the phase diagram for which they were parameterized.
+
+\par The VDOS provides a comprehensive view of the dynamics of a system and will reveal inaccuracies in the dynamics of a system over the entire fundamental frequency range. For this reason, we have calculated the VDOS with a 2-, 3-, and 4-body representation of the forces at four different temperatures. We compare the results of these MBE-MD calculations with the VDOS from calculations with the full potential in Figure \ref{fig:MBE_MD_F4}. Inferences from the results for the VDOS are quite similar to those discussed earlier for the harmonic frequencies. This is quite encouraging as the VDOS is a much better measure of the convergence of the forces than the harmonic frequencies. It should not come as a surprise that the 2- and 3-body descriptions of the dynamics are insufficient to reproduce the peak positions and intensities of the full calculations. While there are some minor discrepancies in intensities at the 4-body level, the peak positions at that level of MBE truncation (up to 4-body) are essentially the same as those for the full potential.
+
+\par In order to make the comparison clearer, we also show the difference of the VDOS calculated from MBE-MD from the full VDOS in Figure \ref{fig:MBE_MD_F5}. We only show the results for T = 200K as the peaks are sufficiently broad at this temperature that the difference is not skewed by tiny differences in vibrational frequencies as is the case for the T = 50K and T = 100K simulations. Essentially, at T = 200K the VDOS is converged at the 4-body level. This is a very stringent test of the convergence of the forces and further strengthens the usefulness of the MBE-MD protocol in future studies.
+
+\par An important point about the MBE, which has not been fully appreciated in the past, is that it is completely composable. That is, there is no reason at all that one needs to use the same level of theory, or even use an ab initio method, at all orders of the MBE. Different levels of theory, whether these are quantum electronic structure, classical molecular mechanics or even electrostatic models can be stitched together to provide the individual components that make up the MBE. Indeed, we have recently shown that the 3-body term of the MBE can be sufficiently described (to high accuracy) at the Hartree-Fock (HF) level of theory.\autocite{heindel_many-body_2020} This realization paves the way for a highly accurate AIMD scheme in which the 1- and 2-body energies and forces can be evaluated at a level as high as CCSD(T) and the 3-body and higher orders are layered on at the HF level. Because the correlation contribution to the energy is negligible beyond the 2-body, this composite scheme should yield dynamics of near CCSD(T) level accuracy. Finally, note that one need not even calculate all parts of the same MBE rank at the same level of theory. Indeed, one could pre-select certain important dimers to evaluate at a higher level of electronic structure theory, i.e., CCSD(T), and calculate the rest of the dimers at a lower level of theory or even a classical representation. Albeit this is not exact, it would lead to a tremendous speed up in calculation time and should allow for accuracies at least on par with commonly used QM/MM techniques. Additionally, mixing classical and quantum methods is much more straightforward within MBE-MD than in QM/MM because the sub-systems are naturally separated so that no couplings between the sub-systems needs to be considered. This contrasts with QM/MM where coupling the classical and quantum regions introduces significant complexity in the calculations.\autocite{liu_qmmm_2014,laino_efficient_2005,laino_efficient_2006,loco_towards_2019} Note that MBE-MD and QM/MM are compatible with each other so one could choose to describe the QM region of a QM/MM calculation via an MBE. These connections represent an exciting research path which we are planning to pursue in the near future.
+
+\subsection{Forces}
+
+\par While energies are important for the description of thermodynamic quantities, the forces are far more important for molecular dynamics. Demerdash and Head-Gordon have suggested that the forces in polarizable potentials may only converge by the 5-body term in the MBE.\autocite{demerdash_assessing_2017} This is in contrast to nearly every other molecular quantity, which are practically converged at the 4-body if not by an earlier term,\autocite{bates_development_2011,medders_many-body_2013,xantheas_cooperativity_2000} with the exception of highly anharmonic vibrations.\autocite{heindel_origin_2018} In order to study the convergence of the forces, we treat the forces on the system as one 3N-dimensional vector (where N is the number of atoms). We then compare the length of this vector with the length of the full forces as well as the angle between these vectors. To make this comparison, we take an uncorrelated sample of 4590 structures from an MD simulation at T = 200K with the MB-Pol potential and compute the MBE of the forces up to the 7-body term for each structure.
+
+\par Figure \ref{fig:MBE_MD_F6} shows the difference in length of the MBE forces calculated up to the $k$-body term from the full forces, $||f^{(k)}_{MBE}||-||f_{full}||$. The average difference between the magnitude of the 4-body forces and full forces is $-1.11\cdot 10^{-5}$ a.u./bohr, while the median force magnitude for this system is $0.222$ a.u./bohr, meaning the force magnitudes are converged to about $5\cdot 10^{-5}$ a.u./bohr. The lengths of the forces are converged to within $10^{-3}$ a.u./bohr even at the 3-body level.
+
+\par The angle between the force vectors seems to asymptotically converge to zero deviation with each order of the MBE improving the angle deviation by about one order of magnitude. Figure \ref{fig:MBE_MD_F6} shows that at the 4-body level, the angle between $f^{(4)}_{MBE}$ and $f_{full}$ is converged to about 0.01 degrees. This amount of angle deviation is apparently sufficient that the average potential energy and vibrational density of states are converged by the 4-body term. Nonetheless, this convergence pattern is quite unusual compared to e.g., the convergence of the energy as described by the MBE.
+
+\par This slower convergence of the angle between the MBE(k) and full forces essentially places a bound on how tightly one can converge a geometry relative to a reference or match the dynamics of a full system. For instance, at the 4-body level, the root-mean-squared deviation (RMSD) averaged over all 4590 \ce{(H2O)_{10}} structures is converged to $3.15\cdot 10^{-5}$ a.u./bohr, while at the 5-body level the RMSD is $2.91\cdot 10^-6$ a.u./bohr. Depending on the calculation of interest, this may or may not be a sufficient level of convergence. For the case of molecular dynamics, we have not seen evidence that the average energy or VDOS are noticeably affected by this deviation in the forces.
+
+\par The slower convergence of forces also highlights the importance for many-body potentials to include an approximate electrostatic scheme on top of the explicitly fitted many-body terms. For instance, MB-Pol contains explicit 1-, 2-, and 3-body terms, but includes all orders of the MBE by layering on electrostatics as calculated by the TTM4-F model.\autocite{burnham_vibrational_2008} Our results suggest that without the addition of these higher-order terms it would be difficult to simultaneously match the forces and energies to reference calculations.
+
+\par We should emphasize that it is not all that surprising to see an asymptotic convergence towards the full-MBE limit. The surprising result is that even at the 5-body level the deviation from the full forces is non-negligible. For instance, the MBE of the energy up to 4-body is usually converged to around 0.1-0.01 kcal/mol. This is well within so-called chemical accuracy (1 kcal/mol) and hence is not considered problematic. On the other hand, it is not uncommon to converge forces to $10^{-5}$ a.u./bohr when using tight thresholds on a geometry optimization. 
+
+\subsection{Harmonic Frequencies}
+
+\par Oftentimes, harmonic frequencies offer a simple picture of the dynamics of a system near a local minimum on the PES. In Figure \ref{fig:MBE_MD_F7}, we show the deviation of the harmonic frequencies calculated with a 2-, 3-, and 4-body representation of the MB-Pol potential from the corresponding harmonic frequencies calculated with the full potential. Since each of these -body representations of the PES will have a slightly different local minimum structure of the chosen isomer of \ce{(H2O)_{10}}, we re-optimized the cluster on each of the -body PESs and performed a harmonic analysis with the same representation of the PES.
+
+\par Some interesting trends are clear from this harmonic picture. Clearly, both 2- and 3-body representations of the PES are woefully deficient, showing deviations in the hydrogen-bonded OH stretches of up to about 375 $\mathrm{cm}^{-1}$ (for the 2-body) and 75 $\mathrm{cm}^{-1}$ (for the 3-body), respectively. Therefore, as with the potential energy, at least a 4-body representation of the PES is required to quantitatively capture the vibrational frequencies for this system. Additionally, all low-frequency vibrations, which are more important than OH stretches for the long-time dynamics, are blue-shifted relative to the frequencies obtained with the full PES. The HOH bends seem to converge faster than OH stretches and librations, while being blue-shifted relative to the frequencies on the full PES.
+
+\par The inaccurate red-shifts of the OH stretches with just the 2-body term indicate that a many-body PES is required to adequately describe cooperative hydrogen-bonding in water clusters. This is somewhat tautological, as the definition of hydrogen bond cooperativity is the presence of large many-body contributions to the binding energy, but nonetheless confirms what one would suspect in the context of vibrational frequency shifts rather than binding energies. These frequency deviations seem to reveal an underappreciated trend, which is that many-body effects seem to stiffen the low-frequency dynamics relative to a strictly pairwise additive potential. One interpretation of this is that hydrogen-bond cooperativity strengthens the coupling between OH stretches and various low-frequency motions, such as the OO stretch, which has been observed, for example, in protonated water cluster systems.\autocite{duong_tag-free_2018}
+
+\subsection{Extension to nuclear statistical mechanical path integral MD simulations}
+
+\par In the interest of completeness of the proposed MBE-MD protocol, we have also considered the extension of the classical MBE-MD to incorporate nuclear statistical mechanical degrees of freedom via path integral molecular dynamics (PIMD),\autocite{chandler_exploiting_1981,feynman_quantum_2010} which we abbreviate as MBE-PIMD. This extension is straightforward, since the evaluation of the potential is not different between PIMD and ordinary MD. The application of the MBE-PIMD for the ring water tetramer, \ce{(H2O)4}, is shown in Figure \ref{fig:MBE_MD_F8}. We use a time step of 0.25 fs to integrate the equations of motion on the TTM2.1-F potential energy surface. The simulations are thermostatted using the PIGLET colored-noise thermostat\autocite{ceriotti_efficient_2012}, which allows for well-converged energies using 64 beads. Each simulation is carried out for 600 ps.
+
+\par The results in Figure \ref{fig:MBE_MD_F8} demonstrate the convergence of MBE-PIMD to the full PIMD simulation for (H2O)4. Because this cluster only contains four monomers, the full PIMD simulation and the simulation driven by 4-body forces should be identical to within statistical accuracy, as they are. Ordinarily, 32 beads is taken to be the largest number of beads necessary to converge PIMD simulations for liquid water.\autocite{ceriotti_i-pi_2014} In this case, the energy seems to be converged to within a few tenths of 1 kcal/mol. Depending on the accuracy one is trying to achieve, this may or may not be acceptable. For instance, if one is interested in extrapolating to the zero temperature limit to estimate zero-point energy, or otherwise interested in very low-temperature simulations,\autocite{uhl_accelerated_2016,schran_quantum_2019} then 64 beads is likely insufficient for clusters. Presumably, this is because of the virtual absence of free OHs in the bulk of liquid water, whereas free OH bonds are quite common in water clusters, allowing for greater proton delocalization.
+
+\section{Conclusions}
+
+\par The MBE(k)-MD protocol, where $k$ is the maximum order of the MBE, formally scales as $O(N^k)$. This means that the MBE is only asymptotically advantageous when using an electronic structure method which scales as a polynomial greater than $O(N^k)$. Truncation at the 3- and/or 4-body term, which is adequate to produce converged energies and forces for water, results in substantial savings over the full calculation for methods including higher levels of electron correlation, such as CCSD(T). In contrast, no savings are realized for using DFT or lower scaling methods as the underlying electronic structure to evaluate the sub fragment clusters. The MBE-MD scheme is trivially parallelizable and can further explore second level parallelization of the underlying electronic structure method used to evaluate the various sub fragments.
+
+\par We have reported the convergence properties of MBE-MD simulations at various orders of the MBE using classical water potentials to evaluate the harmonic frequencies and vibrational density of states of the \ce{(H2O)_{10}} cluster. Our results indicate that the convergence of forces and the average energy during an MBE-MD simulation follows essentially the same trend as has been previously reported for the water cluster minima. The 4-body term is necessary to achieve quantitative accuracy, however truncation up to the 3-body was found to provide near-quantitative results compared with the full (not truncated) PES. This is an encouraging first foray into the new MBE-MD protocol as it means much of the accumulated knowledge about convergence properties and accuracy of the ordinary MBE can transfer to the molecular dynamics context.
+
+\par The extension of the classical to the nuclear statistical description of the nuclei is straightforward; we have demonstrated this by reporting the first MBE-PIMD simulations for the ring (H2O)4 cluster. PIMD and MBE-MD have a great synergy since all sub-system calculations required for the MBE and that of the beads required for the PIMD are completely separable. It would be feasible to achieve near perfect parallelism of all the numerous sub-system calculations required by this protocol for both the MBE-MD and MBE-PIMD simulations. It seems likely that a better integration of GPU-based electronic structure and MD will greatly aid in the future of this effort.
+
+\par In our opinion, the flexibility and simplicity of the MBE will allow for future MD simulations at unprecedented levels of accuracy. Namely, we expect that CCSD(T)-quality dynamics could be achievable by composing the appropriate methods at each order of the MBE and taking advantage of current and future developments on Leadership Computing Facilities. For systems where fragments are naturally defined, such as in clusters, liquids, and solids of hydrogen bonded molecules, the MBE-MD protocol is a very promising approach. In the near future we plan to carry out MP2- and CCSD(T)-quality MBE-MD simulations to further demonstrate the usefulness of this technique.
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_1_left.png}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_1_right.png}
+\end{minipage}
+\end{center}
+\caption[Asymptotic speed-up of the MBE compared to a full calculation for varying numbers of fragments and various polynomial scaling of the relevant electronic structure method compared to a calculation on the full system. Each method is represented with a polynomial scaling as $N^n$, where $N$ is the number of fragments and $n$ the polynomial scaling exponent of the method in question.]{Asymptotic speed-up of the MBE compared to a full calculation for varying numbers of fragments and various polynomial scaling of the relevant electronic structure method compared to a calculation on the full system. Each method is represented with a polynomial scaling as $N^n$, where $N$ is the number of fragments and $n$ the polynomial scaling exponent of the method in question. Figure 1a assumes calculations are carried out to the 3-body term and Figure 1b to the 4-body term. Green/red lines indicate larger/smaller speedups with respect to the full calculation.}
+\label{fig:MBE_MD_F1}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_2.png}
+\end{minipage}
+\end{center}
+\caption[Speed-up of the MBE truncated at the 3- (dotted lines) and the 4-body (solid lines) terms relative to the calculation of the full system for the MP2 (open circles) and the CCSD(T) (filled circles) electronic structure methods.]{Speed-up of the MBE truncated at the 3- (dotted lines) and the 4-body (solid lines) terms relative to the calculation of the full system for the MP2 (open circles) and the CCSD(T) (filled circles) electronic structure methods.}
+\label{fig:MBE_MD_F2}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_3.png}
+\end{minipage}
+\end{center}
+\caption[Convergence of the average potential energy from MBE-MD at T=50K, 100K, 150K, and 200K when driven with a 2-, 3-, and 4-body representation of the potential. Error bars show the standard deviation of the average potential energy. Note that these do not represent uncertainties in the average energy, but the intrinsic fluctuations in potential energy due to thermal energy. The T=0K data correspond to an MBE from single point energies calculated on the minimum of the full PES.]{Convergence of the average potential energy from MBE-MD at T=50K, 100K, 150K, and 200K when driven with a 2-, 3-, and 4-body representation of the potential. Error bars show the standard deviation of the average potential energy. Note that these do not represent uncertainties in the average energy, but the intrinsic fluctuations in potential energy due to thermal energy. The T=0K data correspond to an MBE from single point energies calculated on the minimum of the full PES.}
+\label{fig:MBE_MD_F3}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_4.png}
+\end{minipage}
+\end{center}
+\caption[Vibrational density of states as calculated from a 2-, 3-, and 4-body representation of the forces at temperatures of 50K, 100K, 150K, and 200K. The VDOS calculated from the full system is also shown for comparison. Note that each panel has a different y-axis because thermal broadening results in significantly decreased maximum intensity.]{Vibrational density of states as calculated from a 2-, 3-, and 4-body representation of the forces at temperatures of 50K, 100K, 150K, and 200K. The VDOS calculated from the full system is also shown for comparison. Note that each panel has a different y-axis because thermal broadening results in significantly decreased maximum intensity.}
+\label{fig:MBE_MD_F4}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_5.png}
+\end{minipage}
+\end{center}
+\caption[Difference of the full vibrational density of states (VDOS) of (H2O)10 at T=200K from the VDOS calculated with a 2-, 3-, and 4-body representation of the forces.]{Difference of the full vibrational density of states (VDOS) of (H2O)10 at T=200K from the VDOS calculated with a 2-, 3-, and 4-body representation of the forces.}
+\label{fig:MBE_MD_F5}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_6_top.png}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_6_bottom.png}
+\end{minipage}
+\end{center}
+\caption[(Convergence of the length difference between MBE forces and full forces $||f^{(k)}_{MBE}||-||f_{full}||$ where the MBE forces are calculated up to order . (6b, right) Convergence of the angle between $f^{(k)}_{MBE}$ and $f_{full}$.]{(left) Convergence of the length difference between MBE forces and full forces $||f^{(k)}_{MBE}||-||f_{full}||$ where the MBE forces are calculated up to order . (right) Convergence of the angle between $f^{(k)}_{MBE}$ and $f_{full}$. Notice the log-scale in these plots which makes the error bars appear to be asymmetric when the fluctuations are, in fact, normally distributed around each point.}
+\label{fig:MBE_MD_F6}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_7.png}
+\end{minipage}
+\end{center}
+\caption[Deviation of harmonic frequencies at 2-, 3-, and 4-body levels using the MB-Pol potential. The \ce{(H2O)_{10}} cluster of interest was re-optimized using the MBE and harmonic frequencies were calculated at each minimum using the $k$-body potential.]{Deviation of harmonic frequencies at 2-, 3-, and 4-body levels using the MB-Pol potential. The \ce{(H2O)_{10}} cluster of interest was re-optimized using the MBE and harmonic frequencies were calculated at each minimum using the $k$-body potential. The x-axis simply labels the mode number starting from the lowest frequency harmonic vibration and the y-axis shows deviation from the full harmonic frequencies. The dashed lines separate low-frequency librational modes from HOH bends and OH stretches. The 4-body representation has a maximum deviation of less than 5 $\mathrm{cm}^{-1}$ in the OH stretches.}
+\label{fig:MBE_MD_F7}
+\end{figure}
+
+\begin{figure}[t]
+\uwsinglespace
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\includegraphics[width=\textwidth]{Figures/Chapter_4/ch4_figure_8.png}
+\end{minipage}
+\end{center}
+\caption[Convergence of MBE-PIMD with temperature, using 64 beads for each ring polymer, for \ce{(H2O)4} calculated with a 2-, 3-, and 4-body representation of the forces.]{Convergence of MBE-PIMD with temperature, using 64 beads for each ring polymer, for \ce{(H2O)4} calculated with a 2-, 3-, and 4-body representation of the forces.}
+\label{fig:MBE_MD_F8}
+\end{figure}
+
+\chapter{Conclusions and Future Directions}
+
+\par It is undeniable that molecular simulation is one of the most important tools available for understanding chemical systems, particularly when used in tandem with experiments. One of the biggest limitations of MD simulations comes from the trade-off between accuracy of forces and the time scale over which a simulation can be run. That is, longer time scale phenomena almost always have to be studied with less accurate or less general descriptions of the molecular interactions.
+
+\par We have leveraged the many-body expansion to partially alleviate the trade-off between accuracy and accessible time scale in MD. We have done this by noting that the scaling of the MBE allows high-level electronic structure methods, such as MP2 and CCSD(T), to be used without paying the scaling of the method itself because the many sub-systems in the MBE are essentially constant in size compared to the total system. Furthermore, we have shown that one only needs to calculate up to the 4-body term in the worst case to converge both energies and gradients.
+
+\par Our detailed calculations of the MBE for water clusters showed that electron correlation is unimportant in the 3- and 4-body terms of the MBE as long as a BSSE correction is used. This is very important because being able to use HF makes these calculations computationally feasible. The biggest problem, however, is that the cost of a BSSE correction scales with system size. For this reason, we have shown that the BSSE can be approximated by simple fits to scaled internuclear distances. While this approximation to BSSE will be useful in benchmark single-point calculations, it is useless for MD simulations, since MD only requires the energy gradient and not the energy itself. For this reason, further work on how to approximately correct energy gradients for BSSE needs to be explored. It is worth noting that the problem of BSSE corrections in an MD simulation goes far beyond the MBE-MD technique discussed in this thesis. That is, any \textit{ab initio} MD (AIMD) simulations using gaussian basis functions suffers from BSSE. Not only that, but the computational expense of AIMD simulations means that small basis sets are routinely used, meaning the contribution of BSSE will be particularly large.
+
+\par Even though using HF for 3- and 4-body terms is a huge computational win over correlated methods, HF is still far more expensive than classical force fields or semi-empirical methods. For this reason, we have explored the use of advanced force fields in place of \textit{ab initio} methods for the 3- and 4-body terms. This makes the scaling of the MBE essentially $O(N^2)$ since advanced force fields are often three to six orders of magnitude faster than electronic structure methods. Not only that, but many advanced force fields formally scale as $O(N^2)$, so one can do a calculation on the entire system, then subtract out the 1- and 2-body terms calculated with that force field to get the 3- through $N$-body terms all at once. This approach of layering a force field onto an \textit{ab initio} reference only involves calculations that scale as $O(N^2)$, meaning that the formal scaling of this MBE-MD scheme is independent of the scaling of the electronic structure method being used. We have shown that this scheme can be essentially as accurate as the full AIMD calculations for \textbf{INSERT SYSTEM YOU ACTUALLY USE SLASH DID YOU EVER END UP DOING THIS JOE????}.
+
+\par This thesis provides evidence that the many-body expansion can bridge the paradigms of molecular mechanics and \textit{ab initio} molecular dynamics. Whether or not MBE-MD, as we have described it, will achieve the promise it seems to hold depends largely on building tools to make MBE-MD simulations routine and easy, even for non-experts. This is because the main advantage of MBE-MD is that each term is totally independent of one another. This means that massively parallel computing systems (both CPUs and GPUs) must be effectively utilized. Furthermore, because each term is independent, one can combine many different types of theories. In this sense, the MBE is a recipe for creating hybrid descriptions of molecular properties. Therefore, we believe that this thesis provides the necessary validation of MBE-MD as a viable and accurate approach to molecular simulation. Therefore, the most important future work is creating excellent tools, in the form of software, for efficiently computing the MBE while allowing users to control how each term is calculated, at the software level, in a hardware independent manner.
 
 \end{document}
