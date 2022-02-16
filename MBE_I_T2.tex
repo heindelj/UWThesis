@@ -1,41 +1,20 @@
-\begin{table}[]
-\centering
-\begin{tabular}{@{}rrr@{}}
+\begin{table}[t]
+\begin{adjustbox}{width=\columnwidth,center}
+%\centering
+\begin{tabular}{@{}ccccc@{}}
 \toprule
-k       & Uncorrected     & BSSE-corrected     \\ \midrule
-\multicolumn{3}{c}{n =13}                      \\
+\multicolumn{5}{c}{$k$-Body Energies of \ce{(H2O)_n} (kcal/mol)} \\ \midrule
+$k$ & n=13 & n=16 & n=21 (“all-surface”) & n=21 (“inside”) \\
 \hline
-1-B     & 4.527           & 4.527              \\
-2-B     & -111.096        & -86.692            \\
-3-B     & -26.264         & -28.335            \\
-4-B     & -6.352          & -1.499             \\
-5-B     & 8.243           & 0.056              \\
-6-B     & -4.081          & -0.050             \\
-\hline
-\multicolumn{3}{c}{n =16}                      \\
-\hline
-1-B     & 6.456           & 6.456              \\
-2-B     & -141.072        & -110.162           \\
-3-B     & -35.514         & -37.944            \\
-4-B     & -9.463          & -2.179             \\
-5-B     & 14.560          & 0.181              \\
-\hline
-\multicolumn{3}{c}{n =21 					(“all-surface”)} \\
-\hline
-1-B     & 7.819           &                    \\
-2-B     & -191.747        &                    \\
-3-B     & -44.152         &                    \\
-4-B     & -19.892         &                    \\
-5-B     & 39.090          &                    \\
-\hline
-\multicolumn{3}{c}{n =21 (“inside”)}           \\
-\hline
-1-B     & 9.585           &                    \\
-2-B     & -191.447        &                    \\
-3-B     & -47.359         &                    \\
-4-B     & -20.976         &                    \\
-5-B     & 34.391          &                    \\ \bottomrule
+1-B & 4.527 (4.527) & 6.456 (6.456) & 7.819 & 9.585 -\\
+2-B & -111.096 (-86.692) & -141.072 (-110.162) & -191.747 & -191.447 \\
+3-B & -26.264 (-28.335) & -35.514 (-37.944) & -44.152 & -47.359 \\
+4-B & -6.352 (-1.499) & -9.463 (-2.179) & -19.892 & -20.976 \\
+5-B & 8.243 (0.056) & 14.560 (0.181) & 39.090 & 34.391 \\
+6-B & -4.081 (-0.050) & - & - & - \\ \bottomrule
 \end{tabular}
-\caption[Magnitudes of the individual terms (kcal/mol) for the clusters \ce{(H2O)n}, n = 13, 16, 21 at the MP2/AVDZ level of theory. Both the uncorrected and BSSE-corrected values are listed.]{Magnitudes of the individual terms (kcal/mol) for the clusters \ce{(H2O)n}, n = 13, 16, 21 at the MP2/AVDZ level of theory. Both the uncorrected and BSSE-corrected values are listed.}
-\label{tab:MBE_I_T2}
+\end{adjustbox}
+\begin{spacing}{1.0}
+\caption[Magnitudes of the individual terms (kcal/mol) for the clusters \ce{(H2O)n}, n = 13, 16, 21 at the MP2/AVDZ level of theory. The BSSE-corrected values are listed in parentheses.]{Magnitudes of the individual terms (kcal/mol) for the clusters \ce{(H2O)n}, n = 13, 16, 21 at the MP2/AVDZ level of theory. The BSSE-corrected values are listed in parentheses.}\label{tab:MBE_I_T2}
+\end{spacing}
 \end{table}
